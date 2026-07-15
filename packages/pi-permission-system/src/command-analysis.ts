@@ -33,6 +33,31 @@ export interface PermissionCommandAnalysis {
   recommendation: string;
 }
 
+export type CommandAnalysisFailureCode =
+  | "model_not_found"
+  | "auth_missing"
+  | "timeout"
+  | "aborted"
+  | "empty_response"
+  | "invalid_json"
+  | "provider_error"
+  | "complete_unavailable"
+  | "unknown";
+
+export interface CommandAnalysisFailure {
+  code: CommandAnalysisFailureCode;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+/** Result of one advisory analysis attempt. Disabled returns an empty object. */
+export interface CommandAnalysisOutcome {
+  analysis?: PermissionCommandAnalysis;
+  failure?: CommandAnalysisFailure;
+  /** Wall-clock duration of the model call when one was attempted. */
+  durationMs?: number;
+}
+
 type AnalysisCompleteOptions = {
   apiKey: string;
   headers?: Record<string, string>;
@@ -75,14 +100,30 @@ export async function analyzePermissionCommand(
   ctx: ExtensionContext,
   config: CommandAnalysisConfig,
   details: PromptPermissionDetails,
-): Promise<PermissionCommandAnalysis | undefined> {
-  if (!config.enabled) return undefined;
+): Promise<CommandAnalysisOutcome> {
+  if (!config.enabled) return {};
 
   const model = ctx.modelRegistry.find(config.provider, config.model);
-  if (!model) return undefined;
+  if (!model) {
+    return {
+      failure: {
+        code: "model_not_found",
+        message: `未找到分析模型 ${config.provider}/${config.model}`,
+        details: { provider: config.provider, model: config.model },
+      },
+    };
+  }
 
   const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-  if (!auth.ok || !auth.apiKey) return undefined;
+  if (!auth.ok || !auth.apiKey) {
+    return {
+      failure: {
+        code: "auth_missing",
+        message: `分析模型 ${config.provider}/${config.model} 缺少可用 API 凭据`,
+        details: { provider: config.provider, model: config.model },
+      },
+    };
+  }
 
   const value = selectAnalysisValue(details).slice(0, config.maxCommandLength);
   const userMessage = {
@@ -110,9 +151,23 @@ export async function analyzePermissionCommand(
   const signal = ctx.signal
     ? AbortSignal.any([ctx.signal, timeout.signal])
     : timeout.signal;
+  const startedAt = Date.now();
 
   try {
-    const complete = await loadCompleteFunction();
+    let complete: CompleteFunction;
+    try {
+      complete = await loadCompleteFunction();
+    } catch (error) {
+      return {
+        durationMs: Date.now() - startedAt,
+        failure: {
+          code: "complete_unavailable",
+          message: "当前 pi-ai 无法提供 completeSimple()/complete()",
+          details: { error: errorMessage(error) },
+        },
+      };
+    }
+
     const response = await complete(
       model,
       { systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
@@ -124,17 +179,85 @@ export async function analyzePermissionCommand(
         ...buildThinkingOptions(config.thinkingLevel),
       },
     );
-    if (response.stopReason === "aborted") return undefined;
+    const durationMs = Date.now() - startedAt;
+
+    if (response.stopReason === "aborted" || timeout.signal.aborted) {
+      const timedOut = timeout.signal.aborted;
+      return {
+        durationMs,
+        failure: {
+          code: timedOut ? "timeout" : "aborted",
+          message: timedOut
+            ? `分析超时（${config.timeoutMs}ms，thinking=${config.thinkingLevel}）`
+            : "分析请求被中止",
+          details: {
+            stopReason: response.stopReason,
+            thinkingLevel: config.thinkingLevel,
+            timeoutMs: config.timeoutMs,
+            requestChars: value.length,
+          },
+        },
+      };
+    }
+
     const text = response.content
       .filter(
         (part): part is { type: "text"; text: string } =>
           part.type === "text" && typeof part.text === "string",
       )
       .map((part) => part.text)
-      .join("\n");
-    return parseAnalysis(text);
-  } catch {
-    return undefined;
+      .join("\n")
+      .trim();
+
+    if (!text) {
+      return {
+        durationMs,
+        failure: {
+          code: "empty_response",
+          message: "模型未返回可解析的文本内容",
+          details: {
+            stopReason: response.stopReason,
+            thinkingLevel: config.thinkingLevel,
+          },
+        },
+      };
+    }
+
+    const analysis = parseAnalysis(text);
+    if (!analysis) {
+      return {
+        durationMs,
+        failure: {
+          code: "invalid_json",
+          message: "模型输出不是有效的结构化分析结果",
+          details: {
+            stopReason: response.stopReason,
+            responsePreview: text.slice(0, 240),
+            thinkingLevel: config.thinkingLevel,
+          },
+        },
+      };
+    }
+
+    return { analysis, durationMs };
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    const timedOut = timeout.signal.aborted;
+    return {
+      durationMs,
+      failure: {
+        code: timedOut ? "timeout" : "provider_error",
+        message: timedOut
+          ? `分析超时（${config.timeoutMs}ms，thinking=${config.thinkingLevel}）`
+          : `分析调用失败：${errorMessage(error)}`,
+        details: {
+          thinkingLevel: config.thinkingLevel,
+          timeoutMs: config.timeoutMs,
+          requestChars: value.length,
+          error: errorMessage(error),
+        },
+      },
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -179,13 +302,17 @@ async function loadCompleteFunction(): Promise<CompleteFunction> {
 }
 
 export function formatPermissionCommandAnalysis(
-  analysis: PermissionCommandAnalysis | undefined,
+  outcome: CommandAnalysisOutcome,
   config: CommandAnalysisConfig,
 ): string {
   if (!config.enabled) return "";
-  if (!analysis) {
-    return "\n\n智能安全分析：暂时不可用，请直接审查上方原始请求。";
+  if (!outcome.analysis) {
+    const reason = outcome.failure
+      ? `${outcome.failure.code}: ${outcome.failure.message}`
+      : "原因未记录";
+    return `\n\n智能安全分析：暂时不可用（${reason}）。请直接审查上方原始请求。`;
   }
+  const analysis = outcome.analysis;
   const risks =
     analysis.safetyRisks.length > 0
       ? analysis.safetyRisks.map((risk) => `  • ${risk}`).join("\n")
@@ -200,6 +327,11 @@ export function formatPermissionCommandAnalysis(
     risks,
     `建议：${analysis.recommendation}`,
   ].join("\n");
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function selectAnalysisValue(details: PromptPermissionDetails): string {

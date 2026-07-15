@@ -57,6 +57,7 @@ function makeDeps(
         commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
       }),
       requestPermissionDecision: decisionFn,
+      logger: { review: vi.fn(), debug: vi.fn() },
     },
     events,
     ui,
@@ -166,6 +167,7 @@ describe("LocalUserAuthorizer", () => {
         commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
       }),
       requestPermissionDecision: decisionFn,
+      logger: { review: vi.fn(), debug: vi.fn() },
     });
 
     await authorizer.authorize(makeDetails());

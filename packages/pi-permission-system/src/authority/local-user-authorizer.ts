@@ -10,6 +10,7 @@ import type {
 } from "#src/authority/permission-prompt-component";
 import {
   analyzePermissionCommand,
+  type CommandAnalysisOutcome,
   formatPermissionCommandAnalysis,
 } from "#src/command-analysis";
 import { buildForwardedScopeLabels } from "#src/pattern-suggest";
@@ -18,6 +19,7 @@ import {
   type PermissionEventBus,
 } from "#src/permission-events";
 import { buildUiPrompt } from "#src/permission-ui-prompt";
+import type { DebugReviewLogger } from "#src/session-logger";
 import type { Authorizer } from "./authorizer";
 import type { PromptPermissionDetails } from "./permission-prompter";
 
@@ -35,6 +37,8 @@ export interface LocalUserAuthorizerDeps {
   getPromptPreferences: () => PromptPreferences;
   /** Injected for testability; production callers pass the real function. */
   requestPermissionDecision: typeof requestPermissionDecision;
+  /** Writes command-analysis success/failure diagnostics. */
+  logger: DebugReviewLogger;
 }
 
 /**
@@ -55,14 +59,20 @@ export class LocalUserAuthorizer implements Authorizer {
   ): Promise<PermissionPromptDecision> {
     const uiPrompt = buildUiPrompt(details);
     const preferences = this.deps.getPromptPreferences();
-    const analysis = await analyzePermissionCommand(
+    const outcome = await analyzePermissionCommand(
       this.deps.context,
       preferences.commandAnalysis,
       details,
-    ).catch(() => undefined);
+    ).catch((error: unknown) => ({
+      failure: {
+        code: "unknown" as const,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    }));
+    logCommandAnalysisOutcome(this.deps.logger, details, preferences, outcome);
     const message =
       details.message +
-      formatPermissionCommandAnalysis(analysis, preferences.commandAnalysis);
+      formatPermissionCommandAnalysis(outcome, preferences.commandAnalysis);
     emitUiPromptEvent(this.deps.events, uiPrompt);
     return this.deps.requestPermissionDecision(
       {
@@ -100,4 +110,51 @@ function buildRequestOptions(
   return details.sessionLabel
     ? { sessionLabel: details.sessionLabel }
     : undefined;
+}
+
+function logCommandAnalysisOutcome(
+  logger: DebugReviewLogger,
+  details: PromptPermissionDetails,
+  preferences: PromptPreferences,
+  outcome: CommandAnalysisOutcome,
+): void {
+  if (!preferences.commandAnalysis.enabled) return;
+
+  const base = {
+    requestId: details.requestId,
+    source: details.source,
+    surface: details.surface ?? details.toolName ?? null,
+    toolName: details.toolName ?? null,
+    provider: preferences.commandAnalysis.provider,
+    model: preferences.commandAnalysis.model,
+    thinkingLevel: preferences.commandAnalysis.thinkingLevel,
+    timeoutMs: preferences.commandAnalysis.timeoutMs,
+    durationMs: outcome.durationMs ?? null,
+  };
+
+  if (outcome.analysis) {
+    logger.debug("command_analysis.ok", {
+      ...base,
+      intentCategory: outcome.analysis.intentCategory,
+      riskLevel: outcome.analysis.riskLevel,
+      hasSafetyRisk: outcome.analysis.hasSafetyRisk,
+    });
+    return;
+  }
+
+  if (outcome.failure) {
+    // Review log is on by default; failures stay visible without enabling debugLog.
+    logger.review("command_analysis.failed", {
+      ...base,
+      code: outcome.failure.code,
+      message: outcome.failure.message,
+      details: outcome.failure.details ?? null,
+    });
+    logger.debug("command_analysis.failed", {
+      ...base,
+      code: outcome.failure.code,
+      message: outcome.failure.message,
+      details: outcome.failure.details ?? null,
+    });
+  }
 }

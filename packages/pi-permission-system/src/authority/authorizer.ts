@@ -65,6 +65,7 @@ export function selectAuthorizer(
       events: deps.events,
       getPromptPreferences: deps.getPromptPreferences,
       requestPermissionDecision: deps.requestPermissionDecision,
+      logger: deps.logger,
     });
   }
   if (deps.detection.isSubagent(ctx)) {

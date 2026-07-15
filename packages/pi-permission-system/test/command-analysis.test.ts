@@ -53,7 +53,7 @@ describe("permission command analysis", () => {
       makeDetails(),
     );
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual({});
     expect(context.modelRegistry.find).not.toHaveBeenCalled();
   });
 
@@ -64,21 +64,27 @@ describe("permission command analysis", () => {
       makeDetails(),
     );
 
-    expect(result).toBeUndefined();
-    expect(formatPermissionCommandAnalysis(result, enabledConfig)).toBe(
-      "\n\n智能安全分析：暂时不可用，请直接审查上方原始请求。",
+    expect(result.analysis).toBeUndefined();
+    expect(result.failure?.code).toBe("model_not_found");
+    expect(formatPermissionCommandAnalysis(result, enabledConfig)).toContain(
+      "model_not_found",
+    );
+    expect(formatPermissionCommandAnalysis(result, enabledConfig)).toContain(
+      "暂时不可用",
     );
   });
 
   it("formats a structured risk assessment for the ask page", () => {
     const result = formatPermissionCommandAnalysis(
       {
-        intentCategory: "文件删除",
-        intentSummary: "删除构建产物目录",
-        hasSafetyRisk: true,
-        safetyRisks: ["路径错误时可能误删其他文件", "操作不可直接撤销"],
-        riskLevel: "高",
-        recommendation: "确认路径后再执行",
+        analysis: {
+          intentCategory: "文件删除",
+          intentSummary: "删除构建产物目录",
+          hasSafetyRisk: true,
+          safetyRisks: ["路径错误时可能误删其他文件", "操作不可直接撤销"],
+          riskLevel: "高",
+          recommendation: "确认路径后再执行",
+        },
       },
       enabledConfig,
     );
