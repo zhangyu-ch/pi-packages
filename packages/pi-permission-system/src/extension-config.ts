@@ -9,10 +9,24 @@ import type {
 
 export const EXTENSION_ID = "pi-permission-system";
 
+export const COMMAND_ANALYSIS_THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
+
+export type CommandAnalysisThinkingLevel =
+  (typeof COMMAND_ANALYSIS_THINKING_LEVELS)[number];
+
 export interface CommandAnalysisConfig {
   enabled: boolean;
   provider: string;
   model: string;
+  /** Reasoning/thinking effort passed to the analysis model. */
+  thinkingLevel: CommandAnalysisThinkingLevel;
   timeoutMs: number;
   maxCommandLength: number;
 }
@@ -39,6 +53,7 @@ export const DEFAULT_COMMAND_ANALYSIS_CONFIG: CommandAnalysisConfig = {
   enabled: false,
   provider: "sub2api",
   model: "grok-4.5",
+  thinkingLevel: "high",
   timeoutMs: 30000,
   maxCommandLength: 4000,
 };

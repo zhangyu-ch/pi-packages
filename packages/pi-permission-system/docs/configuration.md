@@ -113,6 +113,7 @@ The assessment includes an intent category, one-sentence intent, whether a safet
     "enabled": true,
     "provider": "sub2api",
     "model": "grok-4.5",
+    "thinkingLevel": "high",
     "timeoutMs": 30000,
     "maxCommandLength": 4000
   }
@@ -124,6 +125,7 @@ The assessment includes an intent category, one-sentence intent, whether a safet
 | `enabled`          | `false`    | Enable analysis only for requests that actually reach the interactive `ask` path. |
 | `provider`         | `sub2api`  | Provider id from Pi's model registry.                                             |
 | `model`            | `grok-4.5` | Model id under that provider.                                                     |
+| `thinkingLevel`    | `high`     | Reasoning effort: `off`/`minimal`/`low`/`medium`/`high`/`xhigh`.                  |
 | `timeoutMs`        | `30000`    | Advisory-call timeout, 1000–60000 ms.                                             |
 | `maxCommandLength` | `4000`     | Maximum request characters sent to the model, 100–20000.                          |
 

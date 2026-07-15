@@ -33,6 +33,17 @@ export interface PermissionCommandAnalysis {
   recommendation: string;
 }
 
+type AnalysisCompleteOptions = {
+  apiKey: string;
+  headers?: Record<string, string>;
+  signal: AbortSignal;
+  maxTokens: number;
+  /** Thinking effort for completeSimple / providers that map reasoning. */
+  reasoning?: CommandAnalysisConfig["thinkingLevel"];
+  /** Raw effort for complete() / providers that accept reasoningEffort. */
+  reasoningEffort?: Exclude<CommandAnalysisConfig["thinkingLevel"], "off">;
+};
+
 type CompleteFunction = (
   model: unknown,
   context: {
@@ -43,12 +54,7 @@ type CompleteFunction = (
       timestamp: number;
     }>;
   },
-  options: {
-    apiKey: string;
-    headers?: Record<string, string>;
-    signal: AbortSignal;
-    maxTokens: number;
-  },
+  options: AnalysisCompleteOptions,
 ) => Promise<{
   stopReason: string;
   content: Array<{ type: string; text?: string }>;
@@ -115,6 +121,7 @@ export async function analyzePermissionCommand(
         headers: auth.headers,
         signal,
         maxTokens: 500,
+        ...buildThinkingOptions(config.thinkingLevel),
       },
     );
     if (response.stopReason === "aborted") return undefined;
@@ -133,25 +140,42 @@ export async function analyzePermissionCommand(
   }
 }
 
+function buildThinkingOptions(
+  thinkingLevel: CommandAnalysisConfig["thinkingLevel"],
+): Pick<AnalysisCompleteOptions, "reasoning" | "reasoningEffort"> {
+  if (thinkingLevel === "off") {
+    return { reasoning: "off" };
+  }
+  // completeSimple maps `reasoning`; raw complete paths accept `reasoningEffort`.
+  return {
+    reasoning: thinkingLevel,
+    reasoningEffort: thinkingLevel,
+  };
+}
+
 async function loadCompleteFunction(): Promise<CompleteFunction> {
   const compatSpecifier: string = "@earendil-works/pi-ai/compat";
   try {
     const compatModule = (await import(compatSpecifier)) as {
+      completeSimple?: CompleteFunction;
       complete?: CompleteFunction;
     };
+    if (compatModule.completeSimple) return compatModule.completeSimple;
     if (compatModule.complete) return compatModule.complete;
   } catch {
-    // pi-ai 0.79 exposes complete from the package root instead.
+    // pi-ai 0.79 exposes complete helpers from the package root instead.
   }
 
   const rootSpecifier: string = "@earendil-works/pi-ai";
   const rootModule = (await import(rootSpecifier)) as {
+    completeSimple?: CompleteFunction;
     complete?: CompleteFunction;
   };
-  if (!rootModule.complete) {
-    throw new Error("The configured pi-ai version does not expose complete()");
-  }
-  return rootModule.complete;
+  if (rootModule.completeSimple) return rootModule.completeSimple;
+  if (rootModule.complete) return rootModule.complete;
+  throw new Error(
+    "The configured pi-ai version does not expose completeSimple()/complete()",
+  );
 }
 
 export function formatPermissionCommandAnalysis(

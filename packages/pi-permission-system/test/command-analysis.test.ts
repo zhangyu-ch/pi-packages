@@ -11,6 +11,7 @@ const disabledConfig: CommandAnalysisConfig = {
   enabled: false,
   provider: "",
   model: "",
+  thinkingLevel: "high",
   timeoutMs: 30000,
   maxCommandLength: 4000,
 };

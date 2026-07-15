@@ -160,6 +160,14 @@ const commandAnalysisSchema = z
       description: "Pi model id used for permission-request analysis.",
       default: "grok-4.5",
     }),
+    thinkingLevel: z
+      .enum(["off", "minimal", "low", "medium", "high", "xhigh"])
+      .optional()
+      .meta({
+        description:
+          "Reasoning/thinking effort for the analysis model. Mapped via the model's thinkingLevelMap when present.",
+        default: "high",
+      }),
     timeoutMs: z.number().int().min(1000).max(60000).optional().meta({
       description: "Maximum time to wait for the advisory LLM analysis.",
       default: 30000,

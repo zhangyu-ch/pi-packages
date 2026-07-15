@@ -75,6 +75,12 @@
           "type": "string",
           "minLength": 1
         },
+        "thinkingLevel": {
+          "description": "Reasoning/thinking effort for the analysis model. Mapped via the model's thinkingLevelMap when present.",
+          "default": "high",
+          "type": "string",
+          "enum": ["off", "minimal", "low", "medium", "high", "xhigh"]
+        },
         "timeoutMs": {
           "description": "Maximum time to wait for the advisory LLM analysis.",
           "default": 30000,

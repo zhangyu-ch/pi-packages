@@ -79,6 +79,7 @@ Configure it with `commandAnalysis` (disabled by default):
     "enabled": true,
     "provider": "sub2api",
     "model": "grok-4.5",
+    "thinkingLevel": "high",
     "timeoutMs": 30000,
     "maxCommandLength": 4000
   }
