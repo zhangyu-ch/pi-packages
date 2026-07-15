@@ -162,7 +162,7 @@ const commandAnalysisSchema = z
     }),
     timeoutMs: z.number().int().min(1000).max(60000).optional().meta({
       description: "Maximum time to wait for the advisory LLM analysis.",
-      default: 8000,
+      default: 30000,
     }),
     maxCommandLength: z.number().int().min(100).max(20000).optional().meta({
       description: "Maximum request characters sent to the analysis model.",
