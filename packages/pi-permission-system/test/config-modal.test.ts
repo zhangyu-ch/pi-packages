@@ -134,6 +134,7 @@ test("permission-system command handlers manage config summary, persistence, and
     permissionReviewLog: false,
     yoloMode: true,
     doublePressToConfirm: true,
+    commandAnalysis: DEFAULT_EXTENSION_CONFIG.commandAnalysis,
   };
 
   try {

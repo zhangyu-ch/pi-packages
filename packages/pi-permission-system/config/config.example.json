@@ -9,6 +9,14 @@
   "toolInputPreviewMaxLength": 400,
   "toolTextSummaryMaxLength": 120,
 
+  "commandAnalysis": {
+    "enabled": false,
+    "provider": "sub2api",
+    "model": "grok-4.5",
+    "timeoutMs": 8000,
+    "maxCommandLength": 4000
+  },
+
   "piInfrastructureReadPaths": [],
 
   "shellTools": {

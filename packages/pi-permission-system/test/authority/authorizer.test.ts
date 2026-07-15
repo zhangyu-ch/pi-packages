@@ -8,6 +8,7 @@ import {
 import { DenyingAuthorizer } from "#src/authority/denying-authorizer";
 import { LocalUserAuthorizer } from "#src/authority/local-user-authorizer";
 import type { SubagentDetector } from "#src/authority/subagent-detection";
+import { DEFAULT_COMMAND_ANALYSIS_CONFIG } from "#src/extension-config";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,10 @@ function makeDeps(
     },
     getPromptPreferences:
       overrides.getPromptPreferences ??
-      (() => ({ doublePressToConfirm: true })),
+      (() => ({
+        doublePressToConfirm: true,
+        commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
+      })),
     requestPermissionDecision:
       overrides.requestPermissionDecision ??
       vi.fn().mockResolvedValue({ approved: true, state: "approved" }),

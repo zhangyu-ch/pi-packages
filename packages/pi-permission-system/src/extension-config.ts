@@ -9,12 +9,22 @@ import type {
 
 export const EXTENSION_ID = "pi-permission-system";
 
+export interface CommandAnalysisConfig {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  timeoutMs: number;
+  maxCommandLength: number;
+}
+
 export interface PermissionSystemExtensionConfig {
   debugLog: boolean;
   permissionReviewLog: boolean;
   yoloMode: boolean;
   /** Require a confirming second press of a decision hotkey in the inline TUI dialog. Defaults to true. */
   doublePressToConfirm: boolean;
+  /** Advisory LLM analysis rendered inside ask permission prompts. */
+  commandAnalysis: CommandAnalysisConfig;
   /** Additional directories to auto-allow for reads as Pi infrastructure. */
   piInfrastructureReadPaths?: string[];
   /** Max length of the inline-JSON input preview shown in permission prompts. Defaults to 200. */
@@ -25,11 +35,20 @@ export interface PermissionSystemExtensionConfig {
   shellTools?: ShellToolsConfig;
 }
 
+export const DEFAULT_COMMAND_ANALYSIS_CONFIG: CommandAnalysisConfig = {
+  enabled: false,
+  provider: "sub2api",
+  model: "grok-4.5",
+  timeoutMs: 30000,
+  maxCommandLength: 4000,
+};
+
 export const DEFAULT_EXTENSION_CONFIG: PermissionSystemExtensionConfig = {
   debugLog: false,
   permissionReviewLog: true,
   yoloMode: false,
   doublePressToConfirm: true,
+  commandAnalysis: { ...DEFAULT_COMMAND_ANALYSIS_CONFIG },
 };
 
 function resolveExtensionRoot(moduleUrl = import.meta.url): string {
@@ -62,6 +81,11 @@ export function normalizePermissionSystemConfig(
     permissionReviewLog: raw.permissionReviewLog !== false,
     yoloMode: raw.yoloMode === true,
     doublePressToConfirm: raw.doublePressToConfirm !== false,
+    commandAnalysis: {
+      ...DEFAULT_COMMAND_ANALYSIS_CONFIG,
+      ...(raw.commandAnalysis ?? {}),
+      enabled: raw.commandAnalysis?.enabled === true,
+    },
   };
   if (raw.piInfrastructureReadPaths !== undefined) {
     result.piInfrastructureReadPaths = raw.piInfrastructureReadPaths;

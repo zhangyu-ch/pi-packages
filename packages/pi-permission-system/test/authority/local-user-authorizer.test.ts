@@ -1,8 +1,10 @@
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import { LocalUserAuthorizer } from "#src/authority/local-user-authorizer";
 import type { PermissionPromptDecision } from "#src/authority/permission-dialog";
 import type { requestPermissionDecision } from "#src/authority/permission-prompt-component";
 import type { PromptPermissionDetails } from "#src/authority/permission-prompter";
+import { DEFAULT_COMMAND_ANALYSIS_CONFIG } from "#src/extension-config";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,16 @@ function makeDetails(
     toolName: "read",
     ...overrides,
   };
+}
+
+function makeContext(): ExtensionContext {
+  return {
+    cwd: "/test/project",
+    signal: new AbortController().signal,
+    modelRegistry: {
+      find: vi.fn().mockReturnValue(undefined),
+    },
+  } as unknown as ExtensionContext;
 }
 
 function makeDeps(
@@ -37,9 +49,13 @@ function makeDeps(
   return {
     deps: {
       ui,
+      context: makeContext(),
       mode: "tui" as const,
       events,
-      getPromptPreferences: () => ({ doublePressToConfirm: true }),
+      getPromptPreferences: () => ({
+        doublePressToConfirm: true,
+        commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
+      }),
       requestPermissionDecision: decisionFn,
     },
     events,
@@ -142,9 +158,13 @@ describe("LocalUserAuthorizer", () => {
     });
     const authorizer = new LocalUserAuthorizer({
       ui,
+      context: makeContext(),
       mode: "tui",
       events,
-      getPromptPreferences: () => ({ doublePressToConfirm: true }),
+      getPromptPreferences: () => ({
+        doublePressToConfirm: true,
+        commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
+      }),
       requestPermissionDecision: decisionFn,
     });
 

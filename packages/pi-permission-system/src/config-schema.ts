@@ -145,6 +145,35 @@ const shellToolsSchema = z
     ],
   });
 
+const commandAnalysisSchema = z
+  .strictObject({
+    enabled: z.boolean().optional().meta({
+      description:
+        "Generate an LLM intent and safety analysis before showing an ask dialog.",
+      default: false,
+    }),
+    provider: z.string().min(1).optional().meta({
+      description: "Pi model provider used for permission-request analysis.",
+      default: "sub2api",
+    }),
+    model: z.string().min(1).optional().meta({
+      description: "Pi model id used for permission-request analysis.",
+      default: "grok-4.5",
+    }),
+    timeoutMs: z.number().int().min(1000).max(60000).optional().meta({
+      description: "Maximum time to wait for the advisory LLM analysis.",
+      default: 8000,
+    }),
+    maxCommandLength: z.number().int().min(100).max(20000).optional().meta({
+      description: "Maximum request characters sent to the analysis model.",
+      default: 4000,
+    }),
+  })
+  .meta({
+    description:
+      "Optional advisory LLM analysis shown inside ask permission dialogs. It never changes the policy decision.",
+  });
+
 /**
  * The on-disk config file shape.
  *
@@ -206,6 +235,7 @@ export const unifiedConfigSchema = z
         "Additional directories to auto-allow for reads as Pi infrastructure, bypassing the `external_directory` gate.\n\nThe extension auto-discovers the global node_modules root (walks up from the extension's install path; falls back to `npm root -g` from a dev checkout), Pi's own install directory (via the coding-agent `getPackageDir()` API), `agentDir`, `agentDir/git`, and project-local `.pi/npm/` and `.pi/git/`. Add entries here for edge cases where auto-discovery is insufficient (e.g. custom `npmCommand` pointing to pnpm).\n\nSupports `~`/`$HOME` expansion. Entries may be plain directory prefixes or wildcard patterns using `*` (matches any characters, including `/`) and `?` (matches exactly one character). `**` and `*` are equivalent — both cross directory boundaries.\n\nOn Windows, matching is case-insensitive and tolerant of either path separator.",
       default: [],
     }),
+    commandAnalysis: commandAnalysisSchema.optional(),
     permission: permissionSchema.optional(),
     shellTools: shellToolsSchema.optional(),
   })
@@ -225,6 +255,9 @@ export type DenyWithReason = z.infer<typeof denyWithReasonSchema>;
 
 /** A pattern value: a PermissionState string OR a DenyWithReason object. */
 export type PatternValue = z.infer<typeof patternValueSchema>;
+
+/** The optional LLM command-analysis configuration. */
+export type CommandAnalysisFileConfig = z.infer<typeof commandAnalysisSchema>;
 
 /** The on-disk permission shape inside the `"permission"` key. */
 export type FlatPermissionConfig = z.infer<typeof permissionSchema>;

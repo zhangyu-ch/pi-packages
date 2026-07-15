@@ -17,6 +17,7 @@ import type {
   PromptPermissionDetails,
 } from "#src/authority/permission-prompter";
 import type { SubagentDetector } from "#src/authority/subagent-detection";
+import { DEFAULT_COMMAND_ANALYSIS_CONFIG } from "#src/extension-config";
 
 // ── Test helpers ──────────────────────────────────────────────────────────
 
@@ -74,7 +75,10 @@ function makeDeps(overrides: Partial<SelectionDeps> = {}): SelectionDeps {
     },
     getPromptPreferences:
       overrides.getPromptPreferences ??
-      (() => ({ doublePressToConfirm: true })),
+      (() => ({
+        doublePressToConfirm: true,
+        commandAnalysis: DEFAULT_COMMAND_ANALYSIS_CONFIG,
+      })),
     requestPermissionDecision:
       overrides.requestPermissionDecision ??
       vi.fn().mockResolvedValue({ approved: true, state: "approved" }),

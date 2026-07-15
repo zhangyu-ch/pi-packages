@@ -8,6 +8,10 @@ import type {
   PromptPreferences,
   requestPermissionDecision,
 } from "#src/authority/permission-prompt-component";
+import {
+  analyzePermissionCommand,
+  formatPermissionCommandAnalysis,
+} from "#src/command-analysis";
 import { buildForwardedScopeLabels } from "#src/pattern-suggest";
 import {
   emitUiPromptEvent,
@@ -21,6 +25,8 @@ import type { PromptPermissionDetails } from "./permission-prompter";
 export interface LocalUserAuthorizerDeps {
   /** The active session's UI surface (select/input plus the inline `custom` dialog). */
   ui: PermissionPromptUi;
+  /** Full context used only for the separately configured advisory model call. */
+  context: ExtensionContext;
   /** The session run mode; the dispatcher renders the inline dialog only in `"tui"`. */
   mode: ExtensionContext["mode"];
   /** Event bus used for the `permissions:ui_prompt` broadcast. */
@@ -44,22 +50,30 @@ export interface LocalUserAuthorizerDeps {
 export class LocalUserAuthorizer implements Authorizer {
   constructor(private readonly deps: LocalUserAuthorizerDeps) {}
 
-  authorize(
+  async authorize(
     details: PromptPermissionDetails,
   ): Promise<PermissionPromptDecision> {
     const uiPrompt = buildUiPrompt(details);
+    const preferences = this.deps.getPromptPreferences();
+    const analysis = await analyzePermissionCommand(
+      this.deps.context,
+      preferences.commandAnalysis,
+      details,
+    ).catch(() => undefined);
+    const message =
+      details.message +
+      formatPermissionCommandAnalysis(analysis, preferences.commandAnalysis);
     emitUiPromptEvent(this.deps.events, uiPrompt);
     return this.deps.requestPermissionDecision(
       {
         mode: this.deps.mode,
         ui: this.deps.ui,
-        doublePressToConfirm:
-          this.deps.getPromptPreferences().doublePressToConfirm,
+        doublePressToConfirm: preferences.doublePressToConfirm,
       },
       details.forwarding
         ? "Permission Required (Subagent)"
         : "Permission Required",
-      details.message,
+      message,
       buildRequestOptions(details),
     );
   }

@@ -21,6 +21,7 @@ import {
   type PromptViewState,
   reducePrompt,
 } from "#src/authority/permission-prompt-decision";
+import type { CommandAnalysisConfig } from "#src/extension-config";
 
 /**
  * Inline `ctx.ui.custom` permission dialog for TUI sessions.
@@ -48,6 +49,7 @@ export interface PermissionPromptView {
 /** Live prompt-behavior preferences read at prompt time (see `doublePressToConfirm`). */
 export interface PromptPreferences {
   doublePressToConfirm: boolean;
+  commandAnalysis: CommandAnalysisConfig;
 }
 
 /**

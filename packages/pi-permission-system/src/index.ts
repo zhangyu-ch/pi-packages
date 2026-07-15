@@ -102,6 +102,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     events: pi.events,
     getPromptPreferences: () => ({
       doublePressToConfirm: configStore.current().doublePressToConfirm,
+      commandAnalysis: configStore.current().commandAnalysis,
     }),
     requestPermissionDecision,
     forwardingDir: paths.forwardingDir,

@@ -55,6 +55,44 @@
         "minLength": 1
       }
     },
+    "commandAnalysis": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Generate an LLM intent and safety analysis before showing an ask dialog.",
+          "default": false,
+          "type": "boolean"
+        },
+        "provider": {
+          "description": "Pi model provider used for permission-request analysis.",
+          "default": "sub2api",
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "description": "Pi model id used for permission-request analysis.",
+          "default": "grok-4.5",
+          "type": "string",
+          "minLength": 1
+        },
+        "timeoutMs": {
+          "description": "Maximum time to wait for the advisory LLM analysis.",
+          "default": 8000,
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        },
+        "maxCommandLength": {
+          "description": "Maximum request characters sent to the analysis model.",
+          "default": 4000,
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 20000
+        }
+      },
+      "additionalProperties": false,
+      "description": "Optional advisory LLM analysis shown inside ask permission dialogs. It never changes the policy decision."
+    },
     "permission": {
       "type": "object",
       "propertyNames": {

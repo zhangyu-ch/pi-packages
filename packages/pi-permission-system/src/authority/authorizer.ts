@@ -60,6 +60,7 @@ export function selectAuthorizer(
   if (ctx.hasUI) {
     return new LocalUserAuthorizer({
       ui: ctx.ui,
+      context: ctx,
       mode: ctx.mode,
       events: deps.events,
       getPromptPreferences: deps.getPromptPreferences,

@@ -250,6 +250,13 @@ export function mergeUnifiedConfigs(
     merged.shellTools = overrideShell;
   }
 
+  // Object-valued advisory settings: project scope replaces global scope as
+  // one coherent model selection instead of mixing provider/model fields.
+  const commandAnalysis = override.commandAnalysis ?? base.commandAnalysis;
+  if (commandAnalysis !== undefined) {
+    merged.commandAnalysis = commandAnalysis;
+  }
+
   // Permission: deep-shallow merge
   const basePerm = base.permission;
   const overridePerm = override.permission;

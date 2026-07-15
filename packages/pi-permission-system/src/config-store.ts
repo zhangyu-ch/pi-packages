@@ -151,6 +151,8 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
       debugLog: normalized.debugLog,
       permissionReviewLog: normalized.permissionReviewLog,
       yoloMode: normalized.yoloMode,
+      doublePressToConfirm: normalized.doublePressToConfirm,
+      commandAnalysis: normalized.commandAnalysis,
     };
 
     const tmpPath = `${globalPath}.tmp`;

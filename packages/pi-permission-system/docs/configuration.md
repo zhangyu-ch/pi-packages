@@ -45,6 +45,13 @@ Scalar fields (`debugLog`, `permissionReviewLog`, `yoloMode`, `doublePressToConf
   "doublePressToConfirm": true,
   "toolInputPreviewMaxLength": 400,
   "toolTextSummaryMaxLength": 120,
+  "commandAnalysis": {
+    "enabled": true,
+    "provider": "sub2api",
+    "model": "grok-4.5",
+    "timeoutMs": 30000,
+    "maxCommandLength": 4000
+  },
   "piInfrastructureReadPaths": [],
 
   // Non-bash tools that carry shell semantics
@@ -89,10 +96,42 @@ Scalar fields (`debugLog`, `permissionReviewLog`, `yoloMode`, `doublePressToConf
 | `doublePressToConfirm`      | `true`  | Requires a confirming second press of a decision hotkey in the inline TUI dialog (see below). TUI sessions only; set to `false` for single-press.    |
 | `toolInputPreviewMaxLength` | `200`   | Max characters of inline JSON shown in permission prompts for tool inputs. Omit to use the default. Set to a large value to disable truncation.      |
 | `toolTextSummaryMaxLength`  | `80`    | Max characters of inline pattern/path summaries (grep patterns, find globs, ls paths) in permission prompts. Omit to use the default.                |
+| `commandAnalysis`           | off     | Optional advisory LLM intent/risk analysis shown inside ask pages. See below.                                                                        |
 | `piInfrastructureReadPaths` | `[]`    | Extra directories to auto-allow for reads, bypassing the `external_directory` gate. Supports `~`/`$HOME` expansion and wildcard patterns (`*`, `?`). |
 
 Both logs write to `~/.pi/agent/extensions/pi-permission-system/logs/`.
 No debug output is printed to the terminal.
+
+### `commandAnalysis` — advisory LLM review in ask pages
+
+When enabled, the permission system calls the selected Pi model before opening an `ask` page and appends a concise Chinese assessment to that same page.
+The assessment includes an intent category, one-sentence intent, whether a safety hazard exists, up to three concrete hazards, a risk level (`低`/`中`/`高`/`严重`), and a recommendation.
+
+```jsonc
+{
+  "commandAnalysis": {
+    "enabled": true,
+    "provider": "sub2api",
+    "model": "grok-4.5",
+    "timeoutMs": 30000,
+    "maxCommandLength": 4000
+  }
+}
+```
+
+| Field              | Default    | Description                                                                       |
+| ------------------ | ---------- | --------------------------------------------------------------------------------- |
+| `enabled`          | `false`    | Enable analysis only for requests that actually reach the interactive `ask` path. |
+| `provider`         | `sub2api`  | Provider id from Pi's model registry.                                             |
+| `model`            | `grok-4.5` | Model id under that provider.                                                     |
+| `timeoutMs`        | `30000`    | Advisory-call timeout, 1000–60000 ms.                                             |
+| `maxCommandLength` | `4000`     | Maximum request characters sent to the model, 100–20000.                          |
+
+The intent taxonomy covers read/query, file creation/modification/deletion, command execution, dependency installation, network access, version control, process/service operations, permission/identity changes, system configuration, data transfer, compound operations, and unknown operations.
+
+This analysis is **not an authorization decision**.
+It cannot allow or deny a call, and errors, missing credentials, timeouts, and malformed model output degrade to an “analysis unavailable” note while preserving the original permission controls.
+Request text is treated as untrusted prompt data, but it is still sent to the configured model provider; choose a provider appropriate for the sensitivity of your commands.
 
 ### Inline permission dialog (TUI)
 
